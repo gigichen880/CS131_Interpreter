@@ -16,6 +16,20 @@ def is_func_call(statement_node):
     return True
   return False
 
+def is_if(statement_node):
+  if statement_node.elem_type == 'if':
+    return True
+  return False
+
+def is_for(statement_node):
+  if statement_node.elem_type == 'for':
+    return True
+  return False
+
+def is_return(statement_node):
+  if statement_node.elem_type == 'return':
+    return True
+  return False
 
 class Interpreter(InterpreterBase):
   def __init__(self, console_output=True, inp=None, trace_output=False):
@@ -41,6 +55,7 @@ class Interpreter(InterpreterBase):
     self.run_func(main_func_node)
 
   def run_func(self, func_node):
+    args_list = func_node.dict['args']
     statements = func_node.dict['statements']
     for statement_node in statements:
       
@@ -60,8 +75,10 @@ class Interpreter(InterpreterBase):
         self.variable_list.append(var_name)
         self.variable_name_to_value[var_name] = 0 # set the initial value to 0 by default
         self.var_to_type[var_name] = "int"
+
     elif is_assignment(statement_node):
       self.do_assignment(statement_node)
+
     elif is_func_call(statement_node):
       func_name = statement_node.dict['name']
       # TODO: inputi() as statement rather than expression in an assignment?
@@ -70,12 +87,35 @@ class Interpreter(InterpreterBase):
           ErrorType.NAME_ERROR,
           f"Function {func_name} has not been defined",
         )
+        # Caveats: also arg_list from proj1?
       arg_list = statement_node.dict['args']
       output = ''
       for arg in arg_list:
         result = self.evaluate_expression(arg)[0]
         output+=str(result)
       super().output(output)
+
+    elif is_if(statement_node):
+      condition = statement_node.dict['condition']
+      if_statements = statement_node.dict['statements']
+      else_statements = statement_node.dict['else_statements']
+      if self.evaluate_expression(condition)[1] != "bool":
+        super().error(
+          ErrorType.TYPE_ERROR,
+          f"Condition of the if statement does not evaluate to a boolean",
+        )
+      else:
+        if self.evaluate_expression(condition)[0]:
+          for statement in if_statements:
+            self.run_statement(statement)
+        elif else_statements != None:
+          for statement in else_statements:
+            self.run_statement(statement)
+
+    elif is_for(statement_node):
+      pass
+    elif is_return(statement_node):
+      pass
 
 
 
@@ -100,6 +140,11 @@ class Interpreter(InterpreterBase):
         return node_dict['val'], "int"
     elif node_type == 'string':
         return node_dict['val'], "string"
+    elif node_type == 'bool':
+        return node_dict['val'], "bool"
+    elif node_type == 'nil':
+        return 'nil', "nil"
+    
     elif node_type == 'var':
         var_name = node_dict['name']
         if var_name not in self.variable_list:
@@ -109,6 +154,23 @@ class Interpreter(InterpreterBase):
           )
         # TODO: no value before? Here have a default init
         return self.variable_name_to_value[var_name], self.var_to_type[var_name]
+    elif node_type == 'neg':
+      if node_dict["op1"][1] != "int":
+        super().error(
+            ErrorType.TYPE_ERROR,
+            "Unable to negate a non-integer type by '-'",
+        )
+      op1 = self.evaluate_expression(node_dict['op1'])[0]
+      return op1 * (-1), "int"
+    elif node_type == '!':
+      if node_dict["op1"][1] != "bool":
+        super().error(
+              ErrorType.TYPE_ERROR,
+              "Unable to negate a non-boolean type by '!'",
+          )
+      op1 = self.evaluate_expression(node_dict['op1'])[0]
+      return False if op1 else True, "bool"
+    
     elif node_type == '+' or node_type == '-':
         # TODO: string concat
         if node_dict['op1'].elem_type == 'string' or node_dict['op2'].elem_type == 'string' \
