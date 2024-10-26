@@ -137,10 +137,13 @@ class Interpreter(InterpreterBase):
     node_type = expression_node.elem_type
     node_dict = expression_node.dict
     if node_type == 'int':
+        # print(node_dict['val'], "int")
         return node_dict['val'], "int"
     elif node_type == 'string':
+        # print(node_dict['val'], "string")
         return node_dict['val'], "string"
     elif node_type == 'bool':
+        # print(node_dict['val'], "bool")
         return node_dict['val'], "bool"
     elif node_type == 'nil':
         return 'nil', "nil"
@@ -170,21 +173,49 @@ class Interpreter(InterpreterBase):
           )
       op1 = self.evaluate_expression(node_dict['op1'])[0]
       return False if op1 else True, "bool"
-    
-    elif node_type == '+' or node_type == '-':
+    elif node_type == '+':
+      if self.evaluate_expression(node_dict['op1'])[1] != "int" or self.evaluate_expression(node_dict['op2'])[1] != "int":
+        if self.evaluate_expression(node_dict['op1'])[1] != "string" or self.evaluate_expression(node_dict['op2'])[1] != "string":
+            super().error(
+              ErrorType.TYPE_ERROR,
+              "Incompatible types for '+' operation",
+            )
+            return
+      op1 = self.evaluate_expression(node_dict['op1'])[0]
+      op2 = self.evaluate_expression(node_dict['op2'])[0]
+      return op1 + op2, "int"
+
+    elif node_type == '-' or node_type == '*' or node_type == '/':
         # TODO: string concat
-        if node_dict['op1'].elem_type == 'string' or node_dict['op2'].elem_type == 'string' \
-        or (node_dict['op1'].elem_type == 'var' and self.var_to_type[node_dict['op1'].dict['name']] == "string") \
-        or (node_dict['op2'].elem_type == 'var' and self.var_to_type[node_dict['op2'].dict['name']] == "string"):
+        if self.evaluate_expression(node_dict['op1'])[1] != "int" or self.evaluate_expression(node_dict['op2'])[1] != "int":
           super().error(
             ErrorType.TYPE_ERROR,
             "Incompatible types for arithmetic operation",
           )
           return
-        else:
-          op1 = self.evaluate_expression(node_dict['op1'])[0]
-          op2 = self.evaluate_expression(node_dict['op2'])[0]
-          return (op1 + op2 if node_type == '+' else op1 - op2), "int"
+        op1 = self.evaluate_expression(node_dict['op1'])[0]
+        op2 = self.evaluate_expression(node_dict['op2'])[0]
+        return (op1 - op2 if node_type == '-' else op1 * op2 if node_type == '*' else op1 // op2), "int"
+    
+    elif node_type == '==' or node_type == '!=' :
+      if self.evaluate_expression(node_dict['op1'])[1] != self.evaluate_expression(node_dict['op2'])[1]:
+        return False, "bool"
+      if self.evaluate_expression(node_dict['op1'])[1] == "nil":
+        return False, "bool"
+      op1 = self.evaluate_expression(node_dict['op1'])[0]
+      op2 = self.evaluate_expression(node_dict['op2'])[0]
+      return (op1 == op2 if node_type == '==' else op1 != op2), "bool"
+
+    elif node_type == '<' or node_type == '<=' or node_type == '>' or node_type == '>=':
+        if self.evaluate_expression(node_dict['op1'])[1] != self.evaluate_expression(node_dict['op2'])[1]:
+          super().error(
+            ErrorType.TYPE_ERROR,
+            "Unsupported comparison between incompatible types",
+          )
+          return
+        op1 = self.evaluate_expression(node_dict['op1'])[0]
+        op2 = self.evaluate_expression(node_dict['op2'])[0]
+        return (op1 < op2 if node_type == '<' else op1 <= op2 if node_type == '<=' else op1 > op2 if node_type == '>' else op1 >= op2), "bool"
     # TODO: expression node representing a function call
     elif node_type == 'fcall':
       func_name = node_dict['name']
@@ -223,16 +254,19 @@ class Interpreter(InterpreterBase):
 
 
 program = """ func main() {
-  var b;
-  b = false;
-  var a;
-  a = 10;
-  if (!b){
-    print(-a+5); 
-  }
+
+print(5=="Hello");            /* prints false */
+print(-6);             /* prints -6 */
+print(!true);          /* prints false */
+
+var a;
+a = 3;
+print(a > 5);          /* prints false */
+print("abc"+"def");    /* prints abcdef */
+      
 
 }
 """
-
+# TODO: print True/False, lower case?
 interpreter = Interpreter()
 interpreter.run(program)   
