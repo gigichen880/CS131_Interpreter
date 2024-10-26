@@ -155,7 +155,7 @@ class Interpreter(InterpreterBase):
         # TODO: no value before? Here have a default init
         return self.variable_name_to_value[var_name], self.var_to_type[var_name]
     elif node_type == 'neg':
-      if node_dict["op1"][1] != "int":
+      if self.evaluate_expression(node_dict["op1"])[1] != "int":
         super().error(
             ErrorType.TYPE_ERROR,
             "Unable to negate a non-integer type by '-'",
@@ -163,7 +163,7 @@ class Interpreter(InterpreterBase):
       op1 = self.evaluate_expression(node_dict['op1'])[0]
       return op1 * (-1), "int"
     elif node_type == '!':
-      if node_dict["op1"][1] != "bool":
+      if self.evaluate_expression(node_dict["op1"])[1] != "bool":
         super().error(
               ErrorType.TYPE_ERROR,
               "Unable to negate a non-boolean type by '!'",
@@ -224,8 +224,13 @@ class Interpreter(InterpreterBase):
 
 program = """ func main() {
   var b;
-  b = 10+(2-3);
-  print(b);  
+  b = false;
+  var a;
+  a = 10;
+  if (!b){
+    print(-a+5); 
+  }
+
 }
 """
 
