@@ -38,6 +38,7 @@ class Interpreter(InterpreterBase):
   def run(self, program):
     ast = parse_program(program)
     self.variable_list = []
+    self.func_list = dict()
     self.variable_name_to_value = dict()  # dict to hold variables
     self.var_to_type = dict()
     functions = ast.dict['functions']
@@ -46,7 +47,8 @@ class Interpreter(InterpreterBase):
       if function.dict['name'] == 'main':
         exist_main = True
         main_func_node = function
-        # TODO: What about functions other than main?
+      else:
+        self.declare_func(function)
     if not exist_main:
       super().error(
         ErrorType.NAME_ERROR,
@@ -54,13 +56,33 @@ class Interpreter(InterpreterBase):
       )
     self.run_func(main_func_node)
 
-  def run_func(self, func_node):
+  def declare_func(self, func_node):
+    func_name = func_node.dict['name']
     args_list = func_node.dict['args']
+    if func_name in self.func_list.keys() and len(args_list) == len(self.func_list[func_name][0]):
+      super().error(
+        ErrorType.TYPE_ERROR,
+        "Undistinguishable function declaration",
+      )
+    arg_names = []
+    for arg in args_list:
+      arg_name = self.extract_argname(arg)
+      arg_names.append(arg_name)
     statements = func_node.dict['statements']
+    self.func_list[(func_name, len(arg_names))] = (arg_names, statements)
+    
+    
+    # pass
+  
+  def run_func(self, func_node):
+    statements = func_node.dict['statements']
+    print(self.func_list)
     for statement_node in statements:
-      
       self.run_statement(statement_node)
 
+  def extract_argname(self, arg_node):
+    return arg_node.dict['name']
+  
   def run_statement(self, statement_node):
     if is_definition(statement_node):
       var_name = statement_node.dict['name']
@@ -81,19 +103,38 @@ class Interpreter(InterpreterBase):
 
     elif is_func_call(statement_node):
       func_name = statement_node.dict['name']
-      # TODO: inputi() as statement rather than expression in an assignment?
-      if func_name != 'print' and func_name != 'inputi':
+      passin_args_list = statement_node.dict['args']
+      num_passins = len(passin_args_list)
+      if func_name == 'print':
+        output = ''
+        for arg in passin_args_list:
+          result = self.evaluate_expression(arg)[0]
+          output+=str(result)
+        super().output(output)
+
+      elif (func_name, num_passins) not in self.func_list:
         super().error(
           ErrorType.NAME_ERROR,
-          f"Function {func_name} has not been defined",
+          f"Function {func_name} with {num_passins} arguments was not found",
         )
-        # Caveats: also arg_list from proj1?
-      arg_list = statement_node.dict['args']
-      output = ''
-      for arg in arg_list:
-        result = self.evaluate_expression(arg)[0]
-        output+=str(result)
-      super().output(output)
+
+      elif func_name == "inputi":
+        # TODO: inputi function
+        pass
+      else: 
+
+        func_args_list = self.func_list[(func_name, num_passins)][0]
+        func_body = self.func_list[(func_name, num_passins)][1]
+        for decl_arg, passin in zip(func_args_list, passin_args_list):
+          self.variable_list.append(decl_arg)
+          resulting_value = self.evaluate_expression(passin)[0]
+          resulting_type = self.evaluate_expression(passin)[1]
+          self.variable_name_to_value[decl_arg] = resulting_value
+          self.var_to_type[decl_arg] = resulting_type
+        for statement in func_body:
+          self.run_statement(statement)
+
+
 
     elif is_if(statement_node):
       condition = statement_node.dict['condition']
@@ -271,12 +312,22 @@ class Interpreter(InterpreterBase):
 
 
 
-program = """ func main() {
+program = """ 
+func foo(c){
+  print("Do nothing");
+  print(c);
+}
 
-print(true || false);  /* prints true */
-print(true || false && false); 
+func foo(d, e){
+  print("Do nothing", d, e);
+}
 
-
+func main() {
+  print(true || false);  /* prints true */
+  print(true || false && false); 
+  var a;
+  a = 10;
+  foo(a+20, -20);
 
 }
 """
