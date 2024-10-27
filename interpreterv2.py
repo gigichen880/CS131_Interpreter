@@ -130,8 +130,6 @@ class Interpreter(InterpreterBase):
     elif is_return(statement_node):
       pass
 
-
-
   def do_assignment(self, statement_node):
     var_name = statement_node.dict['name'] 
     if var_name not in self.variable_list:
@@ -229,6 +227,13 @@ class Interpreter(InterpreterBase):
         op1 = self.evaluate_expression(node_dict['op1'])[0]
         op2 = self.evaluate_expression(node_dict['op2'])[0]
         return (op1 < op2 if node_type == '<' else op1 <= op2 if node_type == '<=' else op1 > op2 if node_type == '>' else op1 >= op2), "bool"
+    elif node_type == '&&' or node_type == '||':
+      op1 = self.evaluate_expression(node_dict['op1'])[0]
+      op2 = self.evaluate_expression(node_dict['op2'])[0]
+      # TODO: seems && || for not both boolean are not specified in spec
+      return op1 and op2 if node_type == '&&' else op1 or op2, "bool"
+
+    
     # TODO: expression node representing a function call
     elif node_type == 'fcall':
       func_name = node_dict['name']
@@ -268,11 +273,9 @@ class Interpreter(InterpreterBase):
 
 program = """ func main() {
 
-var i;
-for (i=0; i < 5; i=i+2) {
-  print(i);
-  i = i-1;
-}
+print(true || false);  /* prints true */
+print(true || false && false); 
+
 
 
 }
