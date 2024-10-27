@@ -113,7 +113,20 @@ class Interpreter(InterpreterBase):
             self.run_statement(statement)
 
     elif is_for(statement_node):
-      pass
+      init = statement_node.dict['init']
+      loop_cond = statement_node.dict['condition']
+      update = statement_node.dict['update']
+      loop_body = statement_node.dict['statements']
+      if self.evaluate_expression(loop_cond)[1] != "bool":
+        super().error(
+          ErrorType.TYPE_ERROR,
+          f"Terminating condition of the for statement does not evaluate to a boolean",
+        )
+      self.do_assignment(init)
+      while (self.evaluate_expression(loop_cond)[0]):
+        for statement in loop_body:
+          self.run_statement(statement)
+        self.run_statement(update)
     elif is_return(statement_node):
       pass
 
@@ -255,15 +268,12 @@ class Interpreter(InterpreterBase):
 
 program = """ func main() {
 
-print(5=="Hello");            /* prints false */
-print(-6);             /* prints -6 */
-print(!true);          /* prints false */
+var i;
+for (i=0; i < 5; i=i+2) {
+  print(i);
+  i = i-1;
+}
 
-var a;
-a = 3;
-print(a > 5);          /* prints false */
-print("abc"+"def");    /* prints abcdef */
-      
 
 }
 """
